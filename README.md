@@ -1,5 +1,5 @@
 # single_od_pytorch
-balloon detection pytorch 
+balloon detection pytorch : tag부터 train까지의 single 
 
 
 python : 3.7.3  
