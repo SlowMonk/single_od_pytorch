@@ -214,26 +214,15 @@ def mean_average_precision(input_size):
 
         boxes_pred = outputs[0]['boxes']
         confidences = outputs[0]['scores']
-        #confidences = list(confidences)
-
-        #print('boxes_pred',boxes_pred)
-        #print('confidences',confidences)
-
-        #print('======================================')
-        #print('original_box_pred->',boxes_pred)
         threshold = 0.7
+
         boxes_pred = boxes_pred[confidences > threshold]
         confidences = confidences[confidences > threshold]
-        #print('confidences->',confidences)
 
         confidences = list(confidences)
         box_true_scale = make_true_boxes_new_scale(df, image_num, input_size=input_size)
 
-        #print('boxes_pred-?>',boxes_pred)
-        #print('box_true_scale->',box_true_scale)
-
-        score = calculate_precision(boxes_true=box_true_scale, boxes_pred=boxes_pred, confidences=confidences,
-                                    threshold=0.5)
+        score = calculate_precision(boxes_true=box_true_scale, boxes_pred=boxes_pred, confidences=confidences,threshold=0.5)
         mean_precisions.append(score)
     return np.mean(mean_precisions)
 if __name__=='__main__':

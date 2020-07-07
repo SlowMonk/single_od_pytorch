@@ -19,4 +19,6 @@ venv
 .weights
 .balloon_datasets/*
 balloon_datasets
+TEST
+TRAIN_70
 

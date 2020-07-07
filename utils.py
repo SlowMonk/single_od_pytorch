@@ -217,7 +217,7 @@ def transform(image, boxes,split,input_size,labels):
     new_image = FT.to_tensor(new_image)
 
     # Normalize by mean and standard deviation of ImageNet data that our base VGG was trained on
-    new_image = FT.normalize(new_image, mean=mean, std=std)
+    #new_image = FT.normalize(new_image, mean=mean, std=std)
     return new_image, new_boxes
 
 def resize(image, boxes, dims=(300, 300), return_percent_coords=True):

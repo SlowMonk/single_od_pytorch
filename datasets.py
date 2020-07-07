@@ -56,8 +56,8 @@ class BalloonDataset(Dataset):
         self.input_size= input_size
 
 
-        rgb_mean = (0.4914, 0.4822, 0.4465)
-        rgb_std = (0.2023, 0.1994, 0.2010)
+        #rgb_mean = (0.4914, 0.4822, 0.4465)
+        #rgb_std = (0.2023, 0.1994, 0.2010)
 
         self.images = glob.glob(self.root +self.split +'_'+str(self.num)+'/*')
 
@@ -70,7 +70,7 @@ class BalloonDataset(Dataset):
         image = self.images[idx]
         image_arr = cv2.imread(image, cv2.IMREAD_COLOR)
         image_arr = cv2.cvtColor(image_arr, cv2.COLOR_BGR2RGB).astype(np.float32)
-        image_arr /= 255.0
+        #image_arr /= 255.0
 
 
         image_id = str(image.split('.')[0])
