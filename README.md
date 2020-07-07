@@ -1,6 +1,6 @@
 # single_od_pytorch
 balloon detection pytorch 
-single object detection 
+
 
 python : 3.7.3  
 pytorch : '1.3.1'  
