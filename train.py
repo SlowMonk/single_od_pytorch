@@ -4,14 +4,14 @@ import time
 import shutil
 import matplotlib.pyplot as plt
 import torch.distributed as dist
-from apex.parallel import DistributedDataParallel as DDP
+#from apex.parallel import DistributedDataParallel as DDP
 import torch.nn as nn
-from utils import *
-
+from utils_ball import *
+ifprint = False
 
 def main():
 
-    batch_size= 14
+    batch_size= 8
     workers = 4
     num_epochs = 500
     dataset_num = 83
@@ -62,6 +62,7 @@ def train(train_loader,model,criterion,optimizer,num_epochs,input_size):
     train_loss = []
     checkpoint_path = '/home/jake/PycharmProjects/balloon_detection/weights/fasterrcnn_resnet50_fpn.pth'
     best_model_path = '/home/jake/PycharmProjects/balloon_detection/weights/best_fasterrcnn_resnet50_fpn.pth'
+    weight_path = '/home/jake/PycharmProjects/balloon_detection/weights/best_fasterrcnn_resnet50_fpn.pth'
 
     # and a learning rate scheduler
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
@@ -70,16 +71,20 @@ def train(train_loader,model,criterion,optimizer,num_epochs,input_size):
     images_temp = []
     targets_temp = []
     for epoch in range(num_epochs):
+        print("==epoch{}==".format(epoch))
         for i, (images, targets, image_ids) in enumerate(train_loader):
-            #print(i)
             images = list(image.to(device) for image in images)
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+            #print('image_ids->',image_ids)
+            #print('images->',images)
+            #print('targets->',targets)
             loss_dict = model(images, targets)
             losses = sum(loss for loss in loss_dict.values())
             train_loss.append(losses.item())
             optimizer.zero_grad()
             losses.backward()
             optimizer.step()
+            #if i==0: break
         epoch_train_loss = np.mean(train_loss)
         total_train_loss.append(epoch_train_loss)
 
@@ -157,11 +162,15 @@ def load_ckp(checkpoint_fpath, model, optimizer):
     valid_loss_min = checkpoint['valid_loss_min']
     # return model, optimizer, epoch value, min validation loss
     return model, optimizer, checkpoint['epoch'], valid_loss_min.item()
+    #return score
+
 
 def mean_average_precision(input_size):
     #input_size = 300
     batch_size = 13
     dataset_num = 83
+
+    ifprint= False
 
     data_folder = '/home/jake/PycharmProjects/balloon_detection/ballon_datasets/'
     checkpoint_fpath = '/home/jake/PycharmProjects/balloon_detection/weights/best_fasterrcnn_resnet50_fpn.pth'
@@ -188,33 +197,39 @@ def mean_average_precision(input_size):
     # print('image_unique->',image_unique)
     mean_precisions = []
 
+    # model eval
+    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+    params = [p for p in model.parameters() if p.requires_grad]
+    optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0005)
+    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+    checkpoint = torch.load(weight_path)
+    model.load_state_dict(checkpoint['state_dict'])
+    model.cuda().eval()
+
     for img in image_unique:
+        if ifprint:print("===========================================",img)
         ##input image new_image_model
         # img_path = path + df['#filename'][image_num]
         img_path = path + img
+        #print('img_path->',img_path)
         new_image_model = make_input_image(img_path, input_size=input_size)
 
+
+        image_num = df[df['#filename']==img].index[0]
         ##true boxes
         df[df['#filename'] == df['#filename'][image_num]]
+        if ifprint:print('file_name->',df[df['#filename'] == df['#filename'][0]][['#filename','x','y','w','h']])
         # input image model(new_image_model)
-        image_num = df[df['#filename'] == img].index[0]
+        #image_num = df[df['#filename'] == img].index[0]
+        image_num  = df[df['#filename'] == df['#filename'][image_num]].index[0]
         true_boxes = make_true_boxes_new_scale(df, image_num, input_size=input_size)
-
-        model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
-        params = [p for p in model.parameters() if p.requires_grad]
-        optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0005)
-        model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
-        checkpoint = torch.load(weight_path)
-        model.load_state_dict(checkpoint['state_dict'])
-        model.cuda()
-        model.eval()
 
         outputs = model([new_image_model])
         outputs = [{k: v.cpu() for k, v in t.items()} for t in outputs]
 
         boxes_pred = outputs[0]['boxes']
         confidences = outputs[0]['scores']
-        threshold = 0.7
+        threshold = 0.5
 
         boxes_pred = boxes_pred[confidences > threshold]
         confidences = confidences[confidences > threshold]
@@ -222,8 +237,15 @@ def mean_average_precision(input_size):
         confidences = list(confidences)
         box_true_scale = make_true_boxes_new_scale(df, image_num, input_size=input_size)
 
-        score = calculate_precision(boxes_true=box_true_scale, boxes_pred=boxes_pred, confidences=confidences,threshold=0.5)
+        #score = calculate_precision(boxes_true=box_true_scale, boxes_pred=boxes_pred, confidences=confidences,threshold=0.5)
+
+        if ifprint:print('boxes_pred->',boxes_pred)
+        if ifprint:print('box_true_scale->',box_true_scale)
+        if ifprint:print('confidences->',confidences)
+        score = calculate_mean_precision(boxes_true=box_true_scale, boxes_pred=boxes_pred, confidences=confidences)
+        if ifprint:print('score->',score)
         mean_precisions.append(score)
     return np.mean(mean_precisions)
+
 if __name__=='__main__':
     main()

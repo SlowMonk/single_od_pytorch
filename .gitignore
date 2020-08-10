@@ -21,4 +21,4 @@ venv
 balloon_datasets
 TEST
 TRAIN_70
-
+./weights

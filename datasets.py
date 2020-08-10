@@ -1,7 +1,7 @@
 import torchvision.transforms.functional as FT
 
 from torch.utils.data import Dataset
-from utils import region_shape_attributes_to_xywh, transform, resize
+from utils_ball import region_shape_attributes_to_xywh, transform, resize
 from torchvision import transforms
 from albumentations.pytorch import ToTensor
 import pandas as pd
@@ -94,7 +94,6 @@ class BalloonDataset(Dataset):
         target = {}
         target['boxes'] = boxes.float()
         target['labels'] = labels
-        #target['image_id'] = objects['#filename']
         target['area'] = area.float()
         target['iscrowd'] = iscrowd.float()
 
