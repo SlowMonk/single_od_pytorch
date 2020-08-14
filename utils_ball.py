@@ -47,36 +47,10 @@ def get_bboxes(bboxes, col, bbox_format = 'pascal_voc', color='white'):
                                  edgecolor=color,
                                  facecolor='none')
         col.add_patch(rect)
-
-def transform(image,boxes,split,input_size,labels):
-    new_image = image
-    new_boxes = boxes
-    # Convert PIL image to Torch tensor
-    new_image = FT.to_tensor(new_image)
-
-    # Expand image (zoom out) with a 50% chance - helpful for training detection of small objects
-    # Fill surrounding space with the mean of ImageNet data that our base VGG was trained on
-    new_image = torch.as_tensor(new_image)
-    boxes = torch.tensor(boxes)
-    new_image = FT.to_pil_image(new_image)
-    if split == 'TRAIN':
-        pass
-
-    # Resize image to (300, 300) - this also converts absolute boundary coordinates to their fractional form
-    new_image, new_boxes = resize(new_image, new_boxes, dims=(input_size, input_size))
-    # print('transform_after_boxes->', new_boxes)
-
-    # Convert PIL image to Torch tensor
-
-    # Normalize by mean and standard deviation of ImageNet data that our base VGG was trained on
-    # new_image = FT.normalize(new_image, mean=mean, std=std)
-    new_image = FT.to_tensor(new_image)
-
-    return new_image, new_boxes
-def transform2(image, boxes,split,input_size,labels):
+def transform_noaug(image, boxes,split,input_size,labels):
 
     assert split in {'TRAIN', 'TEST'}
-
+    ifprint = False
     # print('transform_before_boxes->',boxes)
     # Mean and standard deviation of ImageNet data that our base VGG from torchvision was trained on
     # see: https://pytorch.org/docs/stable/torchvision/models.html
@@ -103,7 +77,214 @@ def transform2(image, boxes,split,input_size,labels):
         boxes = torch.tensor(boxes)
         # 0.5 distort or brightness of the image
         if random.random() < 0.5:
-            print('expand')
+            if ifprint:print('expand')
+            new_image, new_boxes = expand(new_image, boxes, filler=mean)
+
+        # Convert Torch tensor to PIL image
+        new_image = FT.to_pil_image(new_image)
+
+        # Flip image with a 50% chance
+        #if random.random() < 0.5:
+        #    new_image, new_boxes = flip(new_image, new_boxes)
+
+        #HorizontalFlip
+        #if random.random() < 0.5:
+
+    # Resize image to (300, 300) - this also converts absolute boundary coordinates to their fractional form
+    new_image, new_boxes = resize(new_image, new_boxes,dims=(input_size, input_size))
+    # print('transform_after_boxes->', new_boxes)
+
+    # Convert PIL image to Torch tensor
+    new_image = FT.to_tensor(new_image)
+
+    # Normalize by mean and standard deviation of ImageNet data that our base VGG was trained on
+    #new_image = FT.normalize(new_image, mean=mean, std=std)
+    return new_image, new_boxes
+
+def transform(image,boxes,split,input_size,labels):
+    ifprint = False
+    new_image = image
+    new_boxes = boxes
+    # Convert PIL image to Torch tensor
+    new_image = FT.to_tensor(new_image)
+
+    # Expand image (zoom out) with a 50% chance - helpful for training detection of small objects
+    # Fill surrounding space with the mean of ImageNet data that our base VGG was trained on
+    new_image = torch.as_tensor(new_image)
+    boxes = torch.tensor(boxes)
+    new_image = FT.to_pil_image(new_image)
+    #Resize image
+    new_image, new_boxes = resize(new_image, new_boxes, dims=(input_size, input_size))
+    if ifprint:print('new_boxes_type0->',type(new_boxes),new_boxes)
+    #print(f'new_image_shape-> , {np.array(new_image).shape} new_boxes->{new_boxes}')
+
+    #new_image = FT.to_tensor(new_image)
+    new_image = FT.to_tensor(new_image)
+    new_image = FT.to_pil_image(new_image)
+
+    if split == 'TRAIN':
+        if random.random() < 0.2:
+            augment = albumentations.ToGray(p=0.5)
+            aug = albumentations.Compose([augment],
+                                         bbox_params={'format': 'pascal_voc', 'label_fields': ['labels']})
+            aug_result = aug(image=np.array(new_image), bboxes=new_boxes, labels=labels)
+            new_image = aug_result['image']
+            new_boxes = aug_result['bboxes']
+            new_image = FT.to_pil_image(new_image)
+        if random.random() < 0.2:
+            #print('random RandomBrightnessContrast.6')
+            augment = albumentations.RandomBrightnessContrast(p=0.5)
+            aug = albumentations.Compose([augment],
+                                         bbox_params={'format': 'pascal_voc', 'label_fields': ['labels']})
+            aug_result = aug(image=np.array(new_image), bboxes=new_boxes, labels=labels)
+            new_image = aug_result['image']
+            new_boxes = aug_result['bboxes']
+            new_image = FT.to_pil_image(new_image)
+            # print('aug_result->',aug_result)
+        if random.random() < 0.2:
+            #print('horizontalFlip')
+            #print(f'new_boxes->{new_boxes}')
+            augment = albumentations.Flip(p=0.5)
+            aug = albumentations.Compose([augment],bbox_params={'format': 'pascal_voc', 'label_fields': ['labels']})
+            aug_result = aug(image=np.array(new_image), bboxes=new_boxes, labels=labels)
+            new_image = aug_result['image']
+            new_boxes = aug_result['bboxes']
+            new_image = FT.to_pil_image(new_image)
+            if ifprint:print(f'new_boxes_horizontal->{new_boxes}')
+
+        if random.random() < 0.2:
+            #print('horizontalFlip')
+            #print(f'new_boxes->{new_boxes}')
+            augment = albumentations.Flip(p=0.2)
+            aug = albumentations.Compose([augment],bbox_params={'format': 'pascal_voc', 'label_fields': ['labels']})
+            aug_result = aug(image=np.array(new_image), bboxes=new_boxes, labels=labels)
+            new_image = aug_result['image']
+            new_boxes = aug_result['bboxes']
+            new_image = FT.to_pil_image(new_image)
+            if ifprint:print(f'new_boxes_horizontal->{new_boxes}')
+        if random.random() < 0.2:
+            # print('horizontalFlip')
+            # print(f'new_boxes->{new_boxes}')
+            augment = albumentations.Flip(p=0.4)
+            aug = albumentations.Compose([augment], bbox_params={'format': 'pascal_voc', 'label_fields': ['labels']})
+            aug_result = aug(image=np.array(new_image), bboxes=new_boxes, labels=labels)
+            new_image = aug_result['image']
+            new_boxes = aug_result['bboxes']
+            new_image = FT.to_pil_image(new_image)
+            if ifprint: print(f'new_boxes_horizontal->{new_boxes}')
+        if random.random() < 0.2:
+            # print('random RandomBrightnessContrast.6')
+            augment = albumentations.RandomBrightnessContrast(p=0.2)
+            aug = albumentations.Compose([augment],
+                                         bbox_params={'format': 'pascal_voc', 'label_fields': ['labels']})
+            aug_result = aug(image=np.array(new_image), bboxes=new_boxes, labels=labels)
+            new_image = aug_result['image']
+            new_boxes = aug_result['bboxes']
+            new_image = FT.to_pil_image(new_image)
+            # print('aug_result->',aug_result)
+    # Resize image to (300, 300) - this also converts absolute boundary coordinates to their fractional form
+    #new_image, new_boxes = resize(new_image, new_boxes, dims=(input_size, input_size))
+    # print('transform_after_boxes->', new_boxes)
+
+    # Convert PIL image to Torch tensor
+
+    # Normalize by mean and standard deviation of ImageNet data that our base VGG was trained on
+    # new_image = FT.normalize(new_image, mean=mean, std=std)
+
+    #new_image, new_boxes = resize(new_image, new_boxes, dims=(input_size, input_size))
+    if ifprint:print('B')
+    new_image = FT.to_tensor(new_image)
+    #new_boxes = FT.to_tensor((new_boxes))
+    if ifprint:print('C')
+    if ifprint:print('new _boxes->',new_boxes)
+
+    new_boxes = np.array(new_boxes)
+    new_boxes = FT.to_tensor(new_boxes).squeeze(0)
+    if ifprint:print('new_boxes->tensor->',new_boxes)
+    #new_boxes = FT.to_tensor(np.array(new_boxes))
+    #print('new_boxes->',new_boxes)
+    #new_boxes = torch.tensor(new_boxes)
+
+    if ifprint:print('D')
+    return new_image, new_boxes
+
+def transform3(image,boxes,split,input_size,labels):
+    ifprint = False
+    new_image = image
+    new_boxes = boxes
+    # Convert PIL image to Torch tensor
+    new_image = FT.to_tensor(new_image)
+
+    # Expand image (zoom out) with a 50% chance - helpful for training detection of small objects
+    # Fill surrounding space with the mean of ImageNet data that our base VGG was trained on
+    new_image = torch.as_tensor(new_image)
+    boxes = torch.tensor(boxes)
+    new_image = FT.to_pil_image(new_image)
+    #Resize image
+    new_image, new_boxes = resize(new_image, new_boxes, dims=(input_size, input_size))
+    if ifprint:print('new_boxes_type0->',type(new_boxes),new_boxes)
+    #print(f'new_image_shape-> , {np.array(new_image).shape} new_boxes->{new_boxes}')
+
+    #new_image = FT.to_tensor(new_image)
+    new_image = FT.to_tensor(new_image)
+    new_image = FT.to_pil_image(new_image)
+            # print('aug_result->',aug_result)
+    # Resize image to (300, 300) - this also converts absolute boundary coordinates to their fractional form
+    #new_image, new_boxes = resize(new_image, new_boxes, dims=(input_size, input_size))
+    # print('transform_after_boxes->', new_boxes)
+
+    # Convert PIL image to Torch tensor
+
+    # Normalize by mean and standard deviation of ImageNet data that our base VGG was trained on
+    # new_image = FT.normalize(new_image, mean=mean, std=std)
+
+    #new_image, new_boxes = resize(new_image, new_boxes, dims=(input_size, input_size))
+    if ifprint:print('B')
+    new_image = FT.to_tensor(new_image)
+    #new_boxes = FT.to_tensor((new_boxes))
+    if ifprint:print('C')
+    if ifprint:print('new _boxes->',new_boxes)
+
+    new_boxes = np.array(new_boxes)
+    new_boxes = FT.to_tensor(new_boxes).squeeze(0)
+    if ifprint:print('new_boxes->tensor->',new_boxes)
+    #new_boxes = FT.to_tensor(np.array(new_boxes))
+    #print('new_boxes->',new_boxes)
+    #new_boxes = torch.tensor(new_boxes)
+
+    if ifprint:print('D')
+    return new_image, new_boxes
+def transform4(image, boxes,split,input_size,labels):
+
+    assert split in {'TRAIN', 'TEST'}
+    ifprint = False
+    # print('transform_before_boxes->',boxes)
+    # Mean and standard deviation of ImageNet data that our base VGG from torchvision was trained on
+    # see: https://pytorch.org/docs/stable/torchvision/models.html
+    mean = [0.485, 0.456, 0.406]
+    std = [0.229, 0.224, 0.225]
+
+    #ig, ax = plt.subplots(1, 2, figsize=(24, 24))
+    #ax = ax.flatten()
+
+    new_image = image
+    new_boxes = boxes
+    # Skip the following operations for evaluation/testing
+    if split == 'TRAIN':
+        # A series of photometric distortions in random order, each with 50% chance of occurrence, as in Caffe repo
+        if random.random() <0.5:
+            new_image = photometric_distort(new_image)
+
+        # Convert PIL image to Torch tensor
+        new_image = FT.to_tensor(new_image)
+
+        # Expand image (zoom out) with a 50% chance - helpful for training detection of small objects
+        # Fill surrounding space with the mean of ImageNet data that our base VGG was trained on
+        new_image = torch.as_tensor(new_image)
+        boxes = torch.tensor(boxes)
+        # 0.5 distort or brightness of the image
+        if random.random() < 0.5:
+            if ifprint:print('expand')
             new_image, new_boxes = expand(new_image, boxes, filler=mean)
 
         # Convert Torch tensor to PIL image
@@ -119,7 +300,7 @@ def transform2(image, boxes,split,input_size,labels):
                 #print('aug_result->',aug_result)
             if random.random() < 0.3:
                 if random.random() < 0.3:
-                    print('horizontalFlip')
+                    if ifprint:print('horizontalFlip')
                     augment = albumentations.HorizontalFlip(p=1)
                     aug = albumentations.Compose([augment],
                                                  bbox_params={'format': 'pascal_voc', 'label_fields': ['labels']})
@@ -128,7 +309,7 @@ def transform2(image, boxes,split,input_size,labels):
                     new_boxes = aug_result['bboxes']
                     new_image = FT.to_pil_image(new_image)
                 if random.random() < 0.3:
-                    print('horizontal_0./8')
+                    if ifprint:print('horizontal_0./8')
                     augment = albumentations.HorizontalFlip(p=0.8)
                     aug = albumentations.Compose([augment],
                                                  bbox_params={'format': 'pascal_voc', 'label_fields': ['labels']})
@@ -137,7 +318,7 @@ def transform2(image, boxes,split,input_size,labels):
                     new_boxes = aug_result['bboxes']
                     new_image = FT.to_pil_image(new_image)
                 if random.random() < 0.3:
-                    print('horizontal=0.2')
+                    if ifprint:print('horizontal=0.2')
                     augment = albumentations.HorizontalFlip(p=0.2)
                     aug = albumentations.Compose([augment],
                                                  bbox_params={'format': 'pascal_voc', 'label_fields': ['labels']})
@@ -148,7 +329,7 @@ def transform2(image, boxes,split,input_size,labels):
                 # print('aug_result->',aug_result)
             if random.random() < 0.3:
                 if random.random() < 0.3:
-                    print('ToGray')
+                    if ifprint:print('ToGray')
                     augment = albumentations.ToGray(p=1)
                     aug = albumentations.Compose([augment],
                                                  bbox_params={'format': 'pascal_voc', 'label_fields': ['labels']})
@@ -158,7 +339,7 @@ def transform2(image, boxes,split,input_size,labels):
                     new_image = FT.to_pil_image(new_image)
                     # print('aug_result->',aug_result)
                 if random.random() < 0.3:
-                    print('togray0.6')
+                    if ifprint:print('togray0.6')
                     augment = albumentations.ToGray(p=0.6)
                     aug = albumentations.Compose([augment],
                                                  bbox_params={'format': 'pascal_voc', 'label_fields': ['labels']})
@@ -168,7 +349,7 @@ def transform2(image, boxes,split,input_size,labels):
                     new_image = FT.to_pil_image(new_image)
                     # print('aug_result->',aug_result)
                 if random.random() < 0.3:
-                    print('togray0.3')
+                    if ifprint:print('togray0.3')
                     augment = albumentations.ToGray(p=0.9)
                     aug = albumentations.Compose([augment],
                                                  bbox_params={'format': 'pascal_voc', 'label_fields': ['labels']})
@@ -179,7 +360,7 @@ def transform2(image, boxes,split,input_size,labels):
                     # print('aug_result->',aug_result)
             if random.random() < 0.3:
                 if random.random() < 0.3:
-                    print('random RandomBrightnessContrast.6')
+                    if ifprint:print('random RandomBrightnessContrast.6')
                     augment = albumentations.RandomBrightnessContrast(p=1)
                     aug = albumentations.Compose([augment],
                                                  bbox_params={'format': 'pascal_voc', 'label_fields': ['labels']})
@@ -208,7 +389,7 @@ def transform2(image, boxes,split,input_size,labels):
                     # print('aug_result->',aug_result)
             if random.random() < 0.3:
                 if random.random() < 0.3:
-                    print('vertical flip')
+                    if ifprint:print('vertical flip')
                     augment = albumentations.VerticalFlip(p=2)
                     aug = albumentations.Compose([augment],
                                                  bbox_params={'format': 'pascal_voc', 'label_fields': ['labels']})
@@ -262,7 +443,8 @@ def transform2(image, boxes,split,input_size,labels):
 def resize(image, boxes, dims=(300, 300), return_percent_coords=True):
 
     # Resize image
-
+    ifprint=  False
+    if ifprint: print("===========================================")
     new_image = FT.resize(image, dims)
 
     # Resize bounding boxes
@@ -270,11 +452,16 @@ def resize(image, boxes, dims=(300, 300), return_percent_coords=True):
     new_dims =  torch.FloatTensor([dims[0], dims[0], dims[0], dims[0]]).unsqueeze(0)
     boxes = torch.as_tensor(boxes)
     old_dims = torch.as_tensor(old_dims)
+    if ifprint: print('old_dim->A',old_dims,'new_dims->',new_dims)
+    if ifprint: print('old_boxes->B',boxes)
     new_boxes = boxes * (new_dims/old_dims)
+    #new_boxes = boxes/ old_dims
+    #if ifprint: print('new_boxes->',new_boxes)
 
-    if not return_percent_coords:
-        new_dims = torch.FloatTensor([dims[1], dims[0], dims[1], dims[0]]).unsqueeze(0)
-        new_boxes = new_boxes * new_dims
+    #if not return_percent_coords:
+    #    if ifprint: print('return_percent_coords')
+    #    new_dims = torch.FloatTensor([dims[1], dims[0], dims[1], dims[0]]).unsqueeze(0)
+    #    new_boxes = new_boxes * new_dims
     return new_image, new_boxes
 
 # TODO later

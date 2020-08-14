@@ -1,7 +1,7 @@
 import torchvision.transforms.functional as FT
 
 from torch.utils.data import Dataset
-from utils_ball import region_shape_attributes_to_xywh, transform, resize
+from utils_ball import region_shape_attributes_to_xywh, transform, resize,transform_noaug,transform3
 from torchvision import transforms
 from albumentations.pytorch import ToTensor
 import pandas as pd
@@ -80,6 +80,8 @@ class BalloonDataset(Dataset):
         boxes = point[['x', 'y', 'w', 'h']].values
         boxes[:, 2] = boxes[:, 0] + boxes[:, 2]
         boxes[:, 3] = boxes[:, 1] + boxes[:, 3]
+        #boxes[:, 2] = boxes[:, 2]
+        #boxes[:, 3] = boxes[:, 3]
         labels = torch.ones((point.shape[0],), dtype=torch.int64)
 
         # suppose all instances are not crowd
@@ -87,6 +89,7 @@ class BalloonDataset(Dataset):
 
         #transform resize image,boxes
         image_arr, boxes = transform(image_arr, boxes, self.split,self.input_size,labels=labels)
+        #if ifprint:print('got-?',boxes)
 
         area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
         area = torch.as_tensor(area, dtype=torch.float32)
